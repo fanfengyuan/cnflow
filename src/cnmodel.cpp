@@ -90,11 +90,17 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
     CNRT_CHECK_V2(cnrtCreateEvent(&event_start));
     CNRT_CHECK_V2(cnrtCreateEvent(&event_end));
 
-    int buffer_size = 64;
+    int buffer_size = 33;
 
+    input_data_bytes.resize(0);
     for (int i = 0; i < input_num; ++i) {
         cnrtDataDesc_t data_desc = input_descS[i];
         CNRT_CHECK_V2(cnrtSetHostDataLayout(data_desc, _input_dtype, _input_order));
+
+        uint32_t n, c, h, w;
+        cnrtGetDataShape(data_desc, &n, &c, &h, &w);
+        int data_size = n * h * w * ALIGN_UP(c, 128 / sizeof(uint16_t));
+        input_data_bytes.push_back(ALIGN_UP(sizeof(uint16_t) * data_size, 64 * 1024));
     }
     std::vector<size_t> ibytes;
     for (int i = 0; i < input_num; ++i) {
@@ -111,8 +117,8 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
 
         uint32_t n, c, h, w;
         cnrtGetDataShape(data_desc, &n, &c, &h, &w);
-        int data_size = n * h * w * ALIGN_UP(c, 16);
-        output_data_bytes.push_back(ALIGN_UP(sizeof(float) * data_size, 64 * 1024));
+        int data_size = n * h * w * ALIGN_UP(c, 128 / sizeof(uint16_t));
+        output_data_bytes.push_back(ALIGN_UP(sizeof(uint16_t) * data_size, 64 * 1024));
     }
     std::vector<size_t> obytes;
     for (int i = 0; i < output_num; ++i) {
