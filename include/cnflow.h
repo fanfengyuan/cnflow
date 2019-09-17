@@ -89,6 +89,7 @@ class CnFlow {
     int faceboxes_width = 0;
     uint64_t time_start;
     int num_input = 0;
+    int device = 0;
 };
 
 }  // namespace mlu

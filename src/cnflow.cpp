@@ -6,8 +6,6 @@
 
 namespace cnflow {
 
-#define DEVICE 0
-
 void setdevice(int device) {
     cnrtDev_t dev;
     CNRT_CHECK_V2(cnrtGetDeviceHandle(&dev, device));
@@ -50,7 +48,7 @@ void CnFlow::addFaceBoxesPreprocessEx(int parallelism) {
 }
 
 void CnFlow::runFaceBoxesPreprocessEx() {
-    setdevice(0);
+    setdevice(device);
     do {
         USLEEP(100);
     } while (faceboxesModels.size() <= 0);
@@ -99,7 +97,7 @@ void CnFlow::addFaceBoxesInfer(int parallelism, int dp) {
 void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer) {
     size_t align_input_size = ALIGN_UP(sizeof(uint8_t) * faceboxes_height * faceboxes_width * 4, 64 * 1024);
     std::vector<size_t> input_bytes = {align_input_size};
-    cnmodel::CnModel *moder = new cnmodel::CnModel("offline_models/faceboxes-500x500.cambricon", "fusion_0", 0, dp, input_bytes, need_buffer, CNRT_UINT8, CNRT_NHWC);
+    cnmodel::CnModel *moder = new cnmodel::CnModel("offline_models/faceboxes-500x500.cambricon", "fusion_0", device, dp, input_bytes, need_buffer, CNRT_UINT8, CNRT_NHWC);
     if (need_buffer)
         faceboxesModels.push_back(moder);
 
@@ -130,7 +128,7 @@ void CnFlow::addFaceBoxesPostProcess(int parallelism) {
 }
 
 void CnFlow::runFaceBoxesPostProcess() {
-    setdevice(0);
+    setdevice(device);
 
     do {
         USLEEP(100);
