@@ -85,11 +85,16 @@ class CnFlow {
     tsque::TsQueue<uint64_t> FaceBoxesInferTimeQueue;
     tsque::TsQueue<uint64_t> FaceBoxesPostProcessTimeQueue;
 
+    std::string faceboxes_model_path;
+    std::string faceboxes_func_name = "fusion_0";
     int faceboxes_height = 0;
     int faceboxes_width = 0;
     uint64_t time_start;
+    uint64_t one_thrid_time;
+    uint64_t two_thrid_time;
     int num_input = 0;
     int device = 0;
+    bool fake_input = false;
 };
 
 }  // namespace mlu

@@ -35,8 +35,15 @@ private:
     int n_size;
 };
 
+struct Shape {
+    int n;
+    int c;
+    int h;
+    int w;
+};
+
 class CnModel {
-  public:
+public:
     std::string modelpath;
     std::string funcname;
     int device; 
@@ -56,8 +63,7 @@ class CnModel {
     CnModel(const char *_modelpath, 
              const char *_funcname, 
              int _device, 
-             int _dp, 
-             std::vector<size_t> input_data_bytes,
+             int _dp,
              bool need_buffer=false,
              cnrtDataType_t _input_dtype=CNRT_FLOAT32, 
              cnrtDimOrder_t _input_order=CNRT_NCHW, 
@@ -73,7 +79,9 @@ class CnModel {
     void freeOutput(void **output_mlu);
     ~CnModel();
 
-  private:
+    std::vector<Shape> input_shapes;
+
+private:
     float ptv = 0;
     bool muta = false;
     u32_t affinity = 0x01;

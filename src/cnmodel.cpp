@@ -61,12 +61,12 @@ void CnMemManager::push(void **ptrs) {
 }
 
 CnModel::CnModel(const char *_modelpath, const char *_funcname, 
-                   int _device, int _dp, 
-                   std::vector<size_t> input_data_bytes,
+                   int _device, int _dp,
                    bool need_buffer,
                    cnrtDataType_t _input_dtype, cnrtDimOrder_t _input_order,
                    cnrtDataType_t _output_dtype, cnrtDimOrder_t _output_order):
-  modelpath(_modelpath), funcname(_funcname), device(_device), dp(_dp), input_data_bytes(input_data_bytes) {
+  modelpath(_modelpath), funcname(_funcname), device(_device), dp(_dp) {
+    cnrtInit(0);
     cnrtDev_t dev;
     CNRT_CHECK_V2(cnrtGetDeviceHandle(&dev, device));
     CNRT_CHECK_V2(cnrtSetCurrentDevice(dev));
@@ -93,6 +93,7 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
     int buffer_size = 33;
 
     input_data_bytes.resize(0);
+    input_shapes.resize(input_num);
     for (int i = 0; i < input_num; ++i) {
         cnrtDataDesc_t data_desc = input_descS[i];
         CNRT_CHECK_V2(cnrtSetHostDataLayout(data_desc, _input_dtype, _input_order));
@@ -101,6 +102,11 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
         cnrtGetDataShape(data_desc, &n, &c, &h, &w);
         int data_size = n * h * w * ALIGN_UP(c, 128 / sizeof(uint16_t));
         input_data_bytes.push_back(ALIGN_UP(sizeof(uint16_t) * data_size, 64 * 1024));
+
+        input_shapes[i].n = n;
+        input_shapes[i].c = c;
+        input_shapes[i].h = h;
+        input_shapes[i].w = w;
     }
     std::vector<size_t> ibytes;
     for (int i = 0; i < input_num; ++i) {

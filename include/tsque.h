@@ -32,6 +32,8 @@ public:
 
     void resize(int capacity);
     int size();
+    bool empty();
+    bool full();
 
     int push(const T &data, TsQueuePosition_t pos=TSQUE_TAIL);
     void push_n(const std::vector<T> &datas, TsQueuePosition_t pos=TSQUE_TAIL);
@@ -78,6 +80,17 @@ T TsQueue<T>::operator[](int i) {
     locker.unlock();
     return data;
 }
+
+template <typename T>
+bool TsQueue<T>::empty() {
+    return _size <= 0;
+}
+
+template <typename T>
+bool TsQueue<T>::full() {
+    return _size >= _capacity;
+}
+
 
 template <typename T>
 int TsQueue<T>::force_push(const T &data, TsQueuePosition_t pos) {

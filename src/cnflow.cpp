@@ -54,7 +54,11 @@ void CnFlow::runFaceBoxesPreprocessEx() {
     } while (faceboxesModels.size() <= 0);
 
     while (true) {
-        auto images = imagePathQueue.pop_n(faceboxesModels[0]->dp);
+        // TODO: maybe not input_shapes[0]
+        auto images = imagePathQueue.pop_n(faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n);
+        if (images.size() != faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n) {
+            LOG(WARNING) << "need " << faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n << " pop " << images.size();
+        }
 
         uint64_t t1 = cnmodel::time();
 
@@ -62,14 +66,21 @@ void CnFlow::runFaceBoxesPreprocessEx() {
         std::vector<cv::Mat> faceboxes_imgs;
         for (int i = 0; i < images.size(); ++i) {
             float ratio = 1.f;
-            cv::Mat rawimg = cv::imread(images[i].c_str());
-            std::cout << "Image: " << images[i] << " shape: [" << rawimg.rows << ", " << rawimg.cols << ", " << rawimg.channels() << "]" << std::endl;
-            cv::Mat rszd_img = faceboxes_preprocess(rawimg, faceboxes_height, faceboxes_width, ratio);
-            faceboxes_imgs.emplace_back(rszd_img);
+            if (fake_input) {
+                // Maybe not CV_8UC3
+                static std::vector<uint8_t> ones(faceboxes_height * faceboxes_width * 3, 1);
+                cv::Mat fake_img(faceboxes_height, faceboxes_width, CV_8UC3, ones.data());
+                faceboxes_imgs.emplace_back(fake_img);
+            }
+            else {
+                cv::Mat rawimg = cv::imread(images[i].c_str());
+                cv::Mat rszd_img = faceboxes_preprocess(rawimg, faceboxes_height, faceboxes_width, ratio);
+                faceboxes_imgs.emplace_back(rszd_img);
+            }
             ratios.push_back(ratio);
         }
 
-        std::shared_ptr<uint8_t> imgsptr = copyto<uint8_t>(faceboxes_imgs, faceboxesModels[0]->dp);
+        std::shared_ptr<uint8_t> imgsptr = copyto<uint8_t>(faceboxes_imgs, faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n);
         uint8_t *p_imgsptr = imgsptr.get();
 
         void **in_mlu = faceboxesModels[0]->deviceAllocInput();
@@ -95,13 +106,21 @@ void CnFlow::addFaceBoxesInfer(int parallelism, int dp) {
 } 
 
 void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer) {
-    size_t align_input_size = ALIGN_UP(sizeof(uint8_t) * faceboxes_height * faceboxes_width * 4, 64 * 1024);
-    std::vector<size_t> input_bytes = {align_input_size};
-    cnmodel::CnModel *moder = new cnmodel::CnModel("offline_models/faceboxes-500x500.cambricon", "fusion_0", device, dp, input_bytes, need_buffer, CNRT_UINT8, CNRT_NHWC);
+    cnmodel::CnModel *moder = new cnmodel::CnModel(faceboxes_model_path.c_str(), faceboxes_func_name.c_str(), device, dp, need_buffer, CNRT_UINT8, CNRT_NHWC);
+
+    // TODO: maybe not input_shapes[0]
+    this->faceboxes_height = moder->input_shapes[0].h;
+    this->faceboxes_width = moder->input_shapes[0].w;
+    LOG(INFO) << " shape: [" << moder->input_shapes[0].n << ", " << moder->input_shapes[0].c 
+              << ", " << moder->input_shapes[0].h << ", " << moder->input_shapes[0].w << "]" << std::endl;
     if (need_buffer)
         faceboxesModels.push_back(moder);
 
     while (true) {
+        if (faceBoxesBatchInputQueue.empty()) {
+            LOG(WARNING) << "faceBoxesBatchInputQueue size == 0";
+        }
+
         auto faceboxesinput = faceBoxesBatchInputQueue.pop();
 
         uint64_t t1 = cnmodel::time();
@@ -117,6 +136,11 @@ void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer) {
         Host_DeviceInputArray faceboxesoutput(std::move(img), _input_mlu_ptrS, _output_mlu_ptrS);
         faceboxesoutput.imagenames = std::move(faceboxesinput.imagenames);
         faceboxesoutput.ratios = std::move(faceboxesinput.ratios);
+
+        if (faceboxesOutputQueue.full()) {
+            LOG(WARNING) << "faceboxesOutputQueue is full";
+        }
+
         faceboxesOutputQueue.push(std::move(faceboxesoutput));
     }
 }
@@ -154,6 +178,7 @@ void CnFlow::runFaceBoxesPostProcess() {
             
             Host_DeviceInput empty_data;
             faceboxesPostQueue.push(std::move(empty_data));
+            timeQueue.push(cnmodel::time());
         }
 
         uint64_t t2 = cnmodel::time();
@@ -165,6 +190,14 @@ void CnFlow::runFaceBoxesPostProcess() {
             double ptv = static_cast<double>(current_time - time_start) / static_cast<double>(num_input);
             printf("sec: %ld us\n", current_time - time_start);
             printf("qps: %lf\n", 1000000. / ptv);
+
+            auto _start_cnt = num_input / 3;
+            auto _end_cnt = num_input / 3 * 2;
+            auto _tstart = timeQueue[_start_cnt];
+            auto _tend = timeQueue[_end_cnt];
+
+            double full_ptv = static_cast<double>(_tend - _tstart) / static_cast<double>(_end_cnt - _start_cnt);
+            printf("full-utili qps: %lf\n", 1000000. / full_ptv);
         }
     }    
 }
