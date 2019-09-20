@@ -47,7 +47,7 @@ class CnFlow {
     void join();
     void detach();
 
-    void putImageList(const std::vector<std::string> &imagePath);
+    void putImageList(const std::vector<std::string> &imagePath, int epoch);
 
     void addReadImage(int parallelism);
     void runReadImage();
@@ -85,6 +85,8 @@ class CnFlow {
     tsque::TsQueue<uint64_t> FaceBoxesInferTimeQueue;
     tsque::TsQueue<uint64_t> FaceBoxesPostProcessTimeQueue;
 
+    int epoch = 1;
+    std::vector<std::string> imagePath;
     std::string faceboxes_model_path;
     std::string faceboxes_func_name = "fusion_0";
     int faceboxes_height = 0;

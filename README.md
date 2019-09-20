@@ -22,4 +22,4 @@ qps: 1130.318360
 ```
 
 ## Build your own pipeline
-- Modify cnflow.cpp and cnflow.h to build your own pipeline.
+- Modify test/test_flow.cpp, src/cnflow.cpp and include/cnflow.h to build your own pipeline.

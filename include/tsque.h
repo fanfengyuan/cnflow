@@ -27,6 +27,7 @@ public:
     TsQueue();
     explicit TsQueue(int capacity);
     ~TsQueue();
+    void reset();
 
     T operator[](int i);
 
@@ -62,6 +63,14 @@ TsQueue<T>::TsQueue(int capacity): _capacity(capacity) {}
 
 template <typename T>
 TsQueue<T>::~TsQueue() {}
+
+template <typename T>
+void TsQueue<T>::reset() {
+    locker.lock();
+    datas = std::deque<T>();
+    _size = 0;
+    locker.unlock();
+}
 
 template <typename T>
 void TsQueue<T>::resize(int capacity) {

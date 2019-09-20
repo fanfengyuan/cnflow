@@ -33,8 +33,10 @@ void CnFlow::detach() {
     }
 }
 
-void CnFlow::putImageList(const std::vector<std::string> &imagePath) {
-    num_input += imagePath.size();
+void CnFlow::putImageList(const std::vector<std::string> &imagePath, int epoch) {
+    this->epoch = epoch;
+    this->imagePath = imagePath;
+    num_input = imagePath.size();
     for (auto path : imagePath) {
         imagePathQueue.push(path);
     }
@@ -118,7 +120,7 @@ void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer) {
 
     while (true) {
         if (faceBoxesBatchInputQueue.empty()) {
-            LOG(WARNING) << "faceBoxesBatchInputQueue size == 0";
+            // LOG(WARNING) << "faceBoxesBatchInputQueue size == 0";
         }
 
         auto faceboxesinput = faceBoxesBatchInputQueue.pop();
@@ -198,6 +200,17 @@ void CnFlow::runFaceBoxesPostProcess() {
 
             double full_ptv = static_cast<double>(_tend - _tstart) / static_cast<double>(_end_cnt - _start_cnt);
             printf("full-utili qps: %lf\n", 1000000. / full_ptv);
+
+            faceboxesPostQueue.reset();
+            timeQueue.reset();
+
+            if (--epoch != 0) {
+                putImageList(imagePath, epoch);
+            }
+            else {
+                LOG(INFO) << "Finish";
+                exit(0);
+            }
         }
     }    
 }
