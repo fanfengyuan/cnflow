@@ -90,7 +90,7 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
     CNRT_CHECK_V2(cnrtCreateEvent(&event_start));
     CNRT_CHECK_V2(cnrtCreateEvent(&event_end));
 
-    int buffer_size = 33;
+    int buffer_size = 64 + 1;
 
     input_data_bytes.resize(0);
     input_shapes.resize(input_num);
