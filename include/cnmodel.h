@@ -65,6 +65,7 @@ public:
              int _device, 
              int _dp,
              bool need_buffer=false,
+             int buffer_size=1,
              cnrtDataType_t _input_dtype=CNRT_FLOAT32, 
              cnrtDimOrder_t _input_order=CNRT_NCHW, 
              cnrtDataType_t _output_dtype=CNRT_FLOAT32, 
@@ -82,6 +83,7 @@ public:
     std::vector<Shape> input_shapes;
 
 private:
+    int buffer_size;
     float ptv = 0;
     bool muta = false;
     u32_t affinity = 0x01;

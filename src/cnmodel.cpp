@@ -63,6 +63,7 @@ void CnMemManager::push(void **ptrs) {
 CnModel::CnModel(const char *_modelpath, const char *_funcname, 
                    int _device, int _dp,
                    bool need_buffer,
+                   int buffer_size,
                    cnrtDataType_t _input_dtype, cnrtDimOrder_t _input_order,
                    cnrtDataType_t _output_dtype, cnrtDimOrder_t _output_order):
   modelpath(_modelpath), funcname(_funcname), device(_device), dp(_dp) {
@@ -90,7 +91,8 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
     CNRT_CHECK_V2(cnrtCreateEvent(&event_start));
     CNRT_CHECK_V2(cnrtCreateEvent(&event_end));
 
-    int buffer_size = 64 + 1;
+    //int buffer_size = 64 + 1;
+    this->buffer_size = buffer_size;
 
     input_data_bytes.resize(0);
     input_shapes.resize(input_num);

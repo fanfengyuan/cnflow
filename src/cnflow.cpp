@@ -102,13 +102,13 @@ void CnFlow::runFaceBoxesPreprocessEx() {
 void CnFlow::addFaceBoxesInfer(int parallelism, int dp) {
     bool need_buffer = true;
     for (int i = 0; i < parallelism; ++i) {
-        threads.push_back(new std::thread(&CnFlow::runFaceBoxesInfer, this, dp, need_buffer));
+        threads.push_back(new std::thread(&CnFlow::runFaceBoxesInfer, this, dp, need_buffer, parallelism));
         need_buffer = false;
     }
 } 
 
-void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer) {
-    cnmodel::CnModel *moder = new cnmodel::CnModel(faceboxes_model_path.c_str(), faceboxes_func_name.c_str(), device, dp, need_buffer, CNRT_UINT8, CNRT_NHWC);
+void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer, int parallelism) {
+    cnmodel::CnModel *moder = new cnmodel::CnModel(faceboxes_model_path.c_str(), faceboxes_func_name.c_str(), device, dp, need_buffer, 2 * parallelism + 1, CNRT_UINT8, CNRT_NHWC);
 
     // TODO: maybe not input_shapes[0]
     this->faceboxes_height = moder->input_shapes[0].h;
@@ -181,6 +181,21 @@ void CnFlow::runFaceBoxesPostProcess() {
             Host_DeviceInput empty_data;
             faceboxesPostQueue.push(std::move(empty_data));
             timeQueue.push(cnmodel::time());
+
+            if (imagenames[i] == imagePath[i]) {
+                int data_count = faceboxesModels[0]->output_data_counts[0];
+                if (model_output.size() == 0) {
+                    model_output.resize(data_count);
+                    memcpy(model_output.data(), location, sizeof(float) * data_count);
+                }
+                else {
+                    for (int k = 0; k < data_count; ++k) {
+                        if (model_output[k] != location[k]) {
+                            LOG(ERROR) << k << " Model output error: " << model_output[k] << " vs. " << location[k];
+                        }
+                    }
+                }
+            }
         }
 
         uint64_t t2 = cnmodel::time();

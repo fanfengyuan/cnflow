@@ -64,7 +64,7 @@ class CnFlow {
     void runFaceBoxesPreprocessEx();
 
     void addFaceBoxesInfer(int parallelism, int dp=1);
-    void runFaceBoxesInfer(int dp, bool need_buffer);
+    void runFaceBoxesInfer(int dp, bool need_buffer, int parallelism);
     
     void addFaceBoxesPostProcess(int parallelism);
     void runFaceBoxesPostProcess();
@@ -86,6 +86,7 @@ class CnFlow {
     tsque::TsQueue<uint64_t> FaceBoxesPostProcessTimeQueue;
 
     int epoch = 1;
+    std::vector<float> model_output;
     std::vector<std::string> imagePath;
     std::string faceboxes_model_path;
     std::string faceboxes_func_name = "fusion_0";
