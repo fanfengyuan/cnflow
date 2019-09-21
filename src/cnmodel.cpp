@@ -42,6 +42,17 @@ CnMemManager::CnMemManager(size_t num_buffers, std::vector<size_t> size_in_bytes
     }
 }
 
+CnMemManager::CnMemManager(size_t num_buffers, cnrtDataDescArray_t dataDescArray, int array_length, int dp) {
+    for (int i = 0; i < num_buffers; ++i) {
+        void **ptrs;
+        CNRT_CHECK_V2(cnrtMallocBatchByDescArray(&ptrs,
+                                                dataDescArray,
+                                                array_length,
+                                                dp));
+        buffer.push(ptrs);
+    }
+}
+
 CnMemManager::~CnMemManager() {
     while (buffer.size() > 0) {
         void **ptrs = buffer.pop();
@@ -101,7 +112,7 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
         CNRT_CHECK_V2(cnrtSetHostDataLayout(data_desc, _input_dtype, _input_order));
 
         uint32_t n, c, h, w;
-        cnrtGetDataShape(data_desc, &n, &c, &h, &w);
+        CNRT_CHECK_V2(cnrtGetDataShape(data_desc, &n, &c, &h, &w));
         int data_size = n * h * w * ALIGN_UP(c, 128 / sizeof(uint16_t));
         input_data_bytes.push_back(ALIGN_UP(sizeof(uint16_t) * data_size, 64 * 1024));
 
@@ -115,7 +126,7 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
         ibytes.push_back(dp * input_data_bytes[i]);
     }
     if (buffer_size > 0 && need_buffer)
-        input_buffer = new CnMemManager(buffer_size, ibytes);
+        input_buffer = new CnMemManager(buffer_size, input_descS, input_num, dp);
     for (int i = 0; i < output_num; ++i) {
         int data_count;
         cnrtDataDesc_t data_desc = output_descS[i];
@@ -124,7 +135,7 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
         output_data_counts.push_back(data_count);
 
         uint32_t n, c, h, w;
-        cnrtGetDataShape(data_desc, &n, &c, &h, &w);
+        CNRT_CHECK_V2(cnrtGetDataShape(data_desc, &n, &c, &h, &w));
         int data_size = n * h * w * ALIGN_UP(c, 128 / sizeof(uint16_t));
         output_data_bytes.push_back(ALIGN_UP(sizeof(uint16_t) * data_size, 64 * 1024));
     }
@@ -133,7 +144,7 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
         obytes.push_back(dp * output_data_bytes[i]);
     }
     if (buffer_size > 0 && need_buffer)
-        output_buffer = new CnMemManager(buffer_size, obytes);
+        output_buffer = new CnMemManager(buffer_size, output_descS, output_num, dp);
 }
 
 void CnModel::invoke_ex(void **_input_mlu_ptrS, void **_output_mlu_ptrS) {

@@ -25,6 +25,7 @@ class CnMemManager {
 public:
     CnMemManager() {}
     CnMemManager(size_t num_buffers, std::vector<size_t> size_in_bytes);
+    CnMemManager(size_t num_buffers, cnrtDataDescArray_t dataDescArray, int array_length, int dp);
     ~CnMemManager();
 
     void **pop();
