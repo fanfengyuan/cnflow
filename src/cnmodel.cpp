@@ -102,9 +102,6 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
     CNRT_CHECK_V2(cnrtCreateEvent(&event_start));
     CNRT_CHECK_V2(cnrtCreateEvent(&event_end));
 
-    //int buffer_size = 64 + 1;
-    this->buffer_size = buffer_size;
-
     input_data_bytes.resize(0);
     input_shapes.resize(input_num);
     for (int i = 0; i < input_num; ++i) {
@@ -120,7 +117,15 @@ CnModel::CnModel(const char *_modelpath, const char *_funcname,
         input_shapes[i].c = c;
         input_shapes[i].h = h;
         input_shapes[i].w = w;
+
+
+        LOG(INFO) << " shape: [" << input_shapes[i].n << ", " << input_shapes[i].c
+                  << ", " << input_shapes[i].h << ", " << input_shapes[i].w << "]" << std::endl;
+
     }
+
+    LOG(INFO) << "buffer size: " << buffer_size;
+
     std::vector<size_t> ibytes;
     for (int i = 0; i < input_num; ++i) {
         ibytes.push_back(dp * input_data_bytes[i]);
@@ -156,11 +161,27 @@ void CnModel::invoke_ex(void **_input_mlu_ptrS, void **_output_mlu_ptrS) {
         param[input_num + i] = _output_mlu_ptrS[i];
     }
     
+    // CNRT_CHECK_V2(cnrtPlaceEvent(event_start, stream));
+    CNRT_CHECK_V2(cnrtInvokeFunction(function, dim, param, func_type, stream, (void *)&invoke_func_param));
+    // CNRT_CHECK_V2(cnrtPlaceEvent(event_end, stream));
+    CNRT_CHECK_V2(cnrtSyncStream(stream));
+    // CNRT_CHECK_V2(cnrtEventElapsedTime(event_start, event_end, &ptv));
+}
+
+void CnModel::invoke_ex(void **_input_mlu_ptrS, void **_output_mlu_ptrS, float *ptv) {
+    void *param[input_num + output_num]; 
+    for (int i = 0; i < input_num; ++i){
+        param[i] = _input_mlu_ptrS[i];
+    }
+    for (int i = 0; i < output_num; ++i){
+        param[input_num + i] = _output_mlu_ptrS[i];
+    }
+    
     CNRT_CHECK_V2(cnrtPlaceEvent(event_start, stream));
     CNRT_CHECK_V2(cnrtInvokeFunction(function, dim, param, func_type, stream, (void *)&invoke_func_param));
     CNRT_CHECK_V2(cnrtPlaceEvent(event_end, stream));
     CNRT_CHECK_V2(cnrtSyncStream(stream));
-    CNRT_CHECK_V2(cnrtEventElapsedTime(event_start, event_end, &ptv));
+    CNRT_CHECK_V2(cnrtEventElapsedTime(event_start, event_end, ptv));
 }
 
 void **CnModel::deviceAllocInput() {
@@ -172,8 +193,8 @@ void **CnModel::deviceAllocOutput() {
 }
 
 void CnModel::copyin(void **mlu_ptr, void **cpu_ptr) {
-    CNRT_CHECK_V2(cnrtMemcpyBatchByDescArray(mlu_ptr, cpu_ptr, 
-        input_descS, input_num, dp, CNRT_MEM_TRANS_DIR_HOST2DEV));
+    // CNRT_CHECK_V2(cnrtMemcpyBatchByDescArray(mlu_ptr, cpu_ptr, 
+    //     input_descS, input_num, dp, CNRT_MEM_TRANS_DIR_HOST2DEV));
 }
 
 std::shared_ptr<std::shared_ptr<float>> CnModel::copyout(void **mlu_ptr) {
@@ -185,8 +206,8 @@ std::shared_ptr<std::shared_ptr<float>> CnModel::copyout(void **mlu_ptr) {
         output_cpu_ptrS[i] = s_output_ptr.get();
     }
 
-    CNRT_CHECK_V2(cnrtMemcpyBatchByDescArray(output_cpu_ptrS.data(), mlu_ptr, 
-        output_descS, output_num, dp, CNRT_MEM_TRANS_DIR_DEV2HOST));
+    // CNRT_CHECK_V2(cnrtMemcpyBatchByDescArray(output_cpu_ptrS.data(), mlu_ptr, 
+    //     output_descS, output_num, dp, CNRT_MEM_TRANS_DIR_DEV2HOST));
     return s_output_cpu_ptrS;
 }
 

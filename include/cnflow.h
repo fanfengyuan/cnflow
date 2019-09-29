@@ -63,8 +63,9 @@ class CnFlow {
     void addFaceBoxesPreprocessEx(int parallelism);
     void runFaceBoxesPreprocessEx();
 
-    void addFaceBoxesInfer(int parallelism, int dp=1);
-    void runFaceBoxesInfer(int dp, bool need_buffer, int parallelism);
+    void addFaceBoxesInfer(int parallelism, int dp, int buffer_size);
+    void addFaceBoxesInfer(int dp);
+    void runFaceBoxesInfer(int dp, bool need_buffer, int parallelism, int buffer_size=1);
     
     void addFaceBoxesPostProcess(int parallelism);
     void runFaceBoxesPostProcess();
@@ -74,7 +75,7 @@ class CnFlow {
     std::vector<cnmodel::CnModel *> faceboxesModels;
 
     tsque::TsQueue<std::string> imagePathQueue;
-    tsque::TsQueue<cv::Mat> faceboxesRawImageQueue;
+    // tsque::TsQueue<cv::Mat> faceboxesRawImageQueue;
     tsque::TsQueue<Host_DeviceInput> faceboxesInputQueue;
     tsque::TsQueue<Host_DeviceInputArray> faceBoxesBatchInputQueue;
     tsque::TsQueue<Host_DeviceInputArray> faceboxesOutputQueue;

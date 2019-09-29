@@ -1,8 +1,12 @@
 #include <memory>
 
+#include <cmath>
+
 #include "cnflow.h"
 #include "cnmodel.h"
 #include "faceboxes_preprocess.h"
+
+#define MAX_CORE_NUM 16
 
 namespace cnflow {
 
@@ -59,7 +63,7 @@ void CnFlow::runFaceBoxesPreprocessEx() {
         // TODO: maybe not input_shapes[0]
         auto images = imagePathQueue.pop_n(faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n);
         if (images.size() != faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n) {
-            LOG(WARNING) << "need " << faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n << " pop " << images.size();
+            LOG(WARNING) << "expect " << faceboxesModels[0]->dp * faceboxesModels[0]->input_shapes[0].n << " pop " << images.size();
         }
 
         uint64_t t1 = cnmodel::time();
@@ -99,22 +103,33 @@ void CnFlow::runFaceBoxesPreprocessEx() {
     }
 }
 
-void CnFlow::addFaceBoxesInfer(int parallelism, int dp) {
+void CnFlow::addFaceBoxesInfer(int dp) {
+    bool need_buffer = false;
+    cnmodel::CnModel *moder = new cnmodel::CnModel(faceboxes_model_path.c_str(), faceboxes_func_name.c_str(), device, dp, need_buffer, 0, CNRT_UINT8, CNRT_NHWC);
+    float batch_size = static_cast<float>(moder->input_shapes[0].n);
+    int num_models = ceil(MAX_CORE_NUM / batch_size);
+    int buffer_size = 2 * num_models;
+    
+    delete moder;
+    addFaceBoxesInfer(num_models, dp, buffer_size);
+}
+
+void CnFlow::addFaceBoxesInfer(int parallelism, int dp, int buffer_size) {
     bool need_buffer = true;
     for (int i = 0; i < parallelism; ++i) {
-        threads.push_back(new std::thread(&CnFlow::runFaceBoxesInfer, this, dp, need_buffer, parallelism));
+        threads.push_back(new std::thread(&CnFlow::runFaceBoxesInfer, this, dp, need_buffer, parallelism, buffer_size));
         need_buffer = false;
     }
-} 
+}
 
-void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer, int parallelism) {
-    cnmodel::CnModel *moder = new cnmodel::CnModel(faceboxes_model_path.c_str(), faceboxes_func_name.c_str(), device, dp, need_buffer, 2 * parallelism + 1, CNRT_UINT8, CNRT_NHWC);
+void CnFlow::runFaceBoxesInfer(int dp, bool need_buffer, int parallelism, int buffer_size) {
+    cnmodel::CnModel *moder = new cnmodel::CnModel(faceboxes_model_path.c_str(), faceboxes_func_name.c_str(), device, dp, need_buffer, buffer_size, CNRT_UINT8, CNRT_NHWC);
 
     // TODO: maybe not input_shapes[0]
     this->faceboxes_height = moder->input_shapes[0].h;
     this->faceboxes_width = moder->input_shapes[0].w;
-    LOG(INFO) << " shape: [" << moder->input_shapes[0].n << ", " << moder->input_shapes[0].c 
-              << ", " << moder->input_shapes[0].h << ", " << moder->input_shapes[0].w << "]" << std::endl;
+    //LOG(INFO) << " shape: [" << moder->input_shapes[0].n << ", " << moder->input_shapes[0].c 
+    //          << ", " << moder->input_shapes[0].h << ", " << moder->input_shapes[0].w << "]" << std::endl;
     if (need_buffer)
         faceboxesModels.push_back(moder);
 
@@ -191,7 +206,7 @@ void CnFlow::runFaceBoxesPostProcess() {
                 else {
                     for (int k = 0; k < data_count; ++k) {
                         if (model_output[k] != location[k]) {
-                            LOG(ERROR) << k << " Model output error: " << model_output[k] << " vs. " << location[k];
+                            // LOG(ERROR) << k << " Model output error: " << model_output[k] << " vs. " << location[k];
                         }
                     }
                 }
@@ -223,7 +238,16 @@ void CnFlow::runFaceBoxesPostProcess() {
                 putImageList(imagePath, epoch);
             }
             else {
+                auto in_mlu = faceboxesModels[0]->deviceAllocInput();
+                auto out_mlu = faceboxesModels[0]->deviceAllocOutput();
+                float ptv;
+                faceboxesModels[0]->invoke_ex(in_mlu, out_mlu, &ptv);
+                faceboxesModels[0]->freeInput(in_mlu);
+                faceboxesModels[0]->freeOutput(out_mlu);
+
+                LOG(INFO) << "model " << faceboxesModels[0]->modelpath << " latency: " << ptv;
                 LOG(INFO) << "Finish";
+                cnrtDestroy();
                 exit(0);
             }
         }

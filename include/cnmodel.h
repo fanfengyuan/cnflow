@@ -81,6 +81,8 @@ public:
     void freeOutput(void **output_mlu);
     ~CnModel();
 
+    void invoke_ex(void **_input_mlu_ptrS, void **_output_mlu_ptrS, float *ptv);
+
     std::vector<Shape> input_shapes;
 
 private:
