@@ -109,6 +109,8 @@ void CnFlow::addFaceBoxesInfer(int dp) {
     float batch_size = static_cast<float>(moder->input_shapes[0].n);
     int num_models = ceil(MAX_CORE_NUM / batch_size);
     int buffer_size = 2 * num_models;
+
+    LOG(INFO) << "num models: " << num_models;
     
     delete moder;
     addFaceBoxesInfer(num_models, dp, buffer_size);

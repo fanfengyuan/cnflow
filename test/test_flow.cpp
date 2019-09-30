@@ -17,6 +17,10 @@ int main(int argc, char* argv[]) {
     const int device = 0;
 
     std::vector<std::string> imagepaths(10000, "datas/face.jpg");
+    bool fake_input = false;
+
+    LOG(INFO) << "data path: datas/face.jpg";
+    LOG(INFO) << "fake input: " << fake_input;
 
     // Set to 1 for MLU270
     const int dp_faceboxes = 1;
@@ -34,7 +38,7 @@ int main(int argc, char* argv[]) {
     // Set the device id.
     flower.device = device;
     // If true, use the fake image (all 1) for input.
-    flower.fake_input = true;
+    flower.fake_input = fake_input;
     // // The number of parallelism models.
     // int num_models = batch_size + 1;
     // // The buffer size for model input and output deviceMemory.
