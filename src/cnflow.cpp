@@ -16,6 +16,25 @@ void setdevice(int device) {
     CNRT_CHECK_V2(cnrtSetCurrentDevice(dev));
 }
 
+int get_core_num(int batch_size) {
+#define MLU270 (MAX_CORE_NUM == 16)
+#define MLU100 (MAX_CORE_NUM == 32)
+
+#if MLU270
+    std::vector<int> core_nums = {1, 4, 8, 16};
+#elif MLU100
+    std::vector<int> core_nums = {1, 4, 8, 16, 32};
+#else 
+    return 1;
+#endif
+
+    for (int i = core_nums.size() - 1; i >= 0; --i) {
+        if (batch_size % core_nums[i] == 0) {
+            return core_nums[i];
+        }
+    }
+}
+
 CnFlow::CnFlow() {
     CNRT_CHECK_V2(cnrtInit(0));
 
@@ -107,7 +126,7 @@ void CnFlow::addFaceBoxesInfer(int dp) {
     bool need_buffer = false;
     cnmodel::CnModel *moder = new cnmodel::CnModel(faceboxes_model_path.c_str(), faceboxes_func_name.c_str(), device, dp, need_buffer, 0, CNRT_UINT8, CNRT_NHWC);
     float batch_size = static_cast<float>(moder->input_shapes[0].n);
-    int num_models = ceil(MAX_CORE_NUM / batch_size);
+    int num_models = ceil(MAX_CORE_NUM / get_core_num(batch_size));
     int buffer_size = 2 * num_models;
 
     LOG(INFO) << "num models: " << num_models;

@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
     const int device = 0;
 
     std::vector<std::string> imagepaths(10000, "datas/face.jpg");
-    bool fake_input = false;
+    bool fake_input = true;
 
     LOG(INFO) << "data path: datas/face.jpg";
     LOG(INFO) << "fake input: " << fake_input;
